@@ -1,3 +1,4 @@
+const { ObjectId } = require("mongodb");
 const { getDB } = require("../utils/dbConnect");
 
 module.exports.getProducts = async (req, res, next) => {
@@ -10,11 +11,26 @@ module.exports.getProducts = async (req, res, next) => {
   }
 };
 
+module.exports.getProductById = async (req, res, next) => {
+  try {
+    const db = getDB();
+    const id = req.params.id;
+    const result = await db
+      .collection("ShopExProducts")
+      .find({ _id: ObjectId(id) })
+      .toArray();
+    if (result) {
+      return res.json({ status: true, data: result });
+    }
+    res.send({ status: false });
+  } catch (err) {
+    next(err);
+  }
+};
 module.exports.getProductsByProductsId = async (req, res, next) => {
   try {
     const db = getDB();
     const id = req.params.id;
-    console.log("Check", id);
     const result = await db
       .collection("ShopExProducts")
       .find({ productsId: parseInt(id) })
