@@ -1,13 +1,17 @@
 const express = require("express");
-const userControllers = require("../../controllers/products.controllers");
+const ProductControllers = require("../../controllers/products.controllers");
 
 const router = express.Router();
-router.route("/").get(userControllers.getProducts);
-router.route("/product-by-id/:id").get(userControllers.getProductById);
 
-// Data Get with id Params
-router.route("/:id").get(userControllers.getProductsByProductsId);
+//All Products Get Route
+router.route("/").get(ProductControllers.getProducts);
 
-//best products get
-router.route("/bestProducts/products").get(userControllers.getBestProducts);
+//One Product Get With ID
+router.route("/product-by-id/:id").get(ProductControllers.getProductById);
+
+// Categories Way Data Get with Specific Match Many Products
+router.route("/:id").get(ProductControllers.getProductsByProductsId);
+
+//all best products get
+router.route("/bestProducts/products").get(ProductControllers.getBestProducts);
 module.exports = router;

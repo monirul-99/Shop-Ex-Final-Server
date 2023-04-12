@@ -59,3 +59,39 @@ module.exports.getBestProducts = async (req, res, next) => {
     next(err);
   }
 };
+module.exports.update = async (req, res, next) => {
+  try {
+    const db = getDB();
+    const filter = {};
+    const option = { upsert: true };
+    const updateDoc = {
+      $set: {
+        availableQuantity: 27,
+      },
+    };
+    const result = await await db
+      .collection("ShopExProducts")
+      .updateMany(filter, updateDoc, option);
+
+    res.send(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// app.get("/update", async (req, res) => {
+//   const filter = {};
+//   const option = { upsert: true };
+//   const updateDoc = {
+//     $set: {
+//       Quantity: 0,
+//     },
+//   };
+//   const result = await allCardDataCollection.updateMany(
+//     filter,
+//     updateDoc,
+//     option
+//   );
+
+//   res.send(result);
+// });
