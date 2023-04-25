@@ -15,11 +15,12 @@ module.exports.ordersInsert = async (req, res, next) => {
       .collection("ShopExProducts")
       .findOne({ _id: ObjectId(order.id) });
     const transactionId = new ObjectId().toString();
+    const totalPrice = findProduct.price * order.quantity;
     const data = {
-      total_amount: findProduct.price,
+      total_amount: totalPrice,
       currency: "USD",
       tran_id: transactionId,
-      success_url: `http://localhost:5000/api/v1/orders/payment/success?transactionId=${transactionId}`,
+      success_url: `https://shop-ex-mvc-ach-server.vercel.app/api/v1/orders/payment/success?transactionId=${transactionId}&quantity=${order.quantity}&productID=${order.id}`,
       fail_url: "http://localhost:5000/fail",
       cancel_url: "http://localhost:5000/cancel",
       ipn_url: "http://localhost:5000/ipn",
@@ -42,15 +43,23 @@ module.exports.ordersInsert = async (req, res, next) => {
       ship_country: "Bangladesh",
     };
     const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
-    sslcz.init(data).then((apiResponse) => {
+    sslcz.init(data).then(async (apiResponse) => {
       let GatewayPageURL = apiResponse.GatewayPageURL;
-      db.collection("ShopExOrders").insertOne({
-        ...order,
-        product_name: findProduct.title,
-        price: findProduct.price,
-        transactionId,
-        paid: false,
-      });
+
+      const figureOut = await db
+        .collection("ShopExOrders")
+        .findOne({ mainId: order?.id });
+      {
+        !figureOut._id &&
+          db.collection("ShopExOrders").insertOne({
+            ...order,
+            product_name: findProduct.title,
+            price: totalPrice,
+            transactionId,
+            paid: false,
+          });
+      }
+
       res.send({ url: GatewayPageURL });
     });
   } catch (err) {
@@ -62,7 +71,23 @@ module.exports.PaidStatusUpdate = async (req, res, next) => {
   try {
     const db = getDB();
     const id = req.query.transactionId;
-    const filter = { transactionId: id };
+    const quantity = req.query.quantity;
+    const productID = req.query.productID;
+    const rowProduct = await db
+      .collection("ShopExProducts")
+      .findOne({ _id: ObjectId(productID) });
+
+    const latestQuantity = rowProduct.availableQuantity - quantity;
+
+    const filter = { mainId: productID };
+    // console.log({ id, quantity, productID });
+    const filter2 = { _id: ObjectId(productID) };
+    const updatedOrders2 = {
+      $set: {
+        availableQuantity: latestQuantity,
+      },
+    };
+
     const updatedOrders = {
       $set: {
         paid: true,
@@ -71,10 +96,14 @@ module.exports.PaidStatusUpdate = async (req, res, next) => {
     };
     const updatedResult = await db
       .collection("ShopExOrders")
-      .updateOne(filter, updatedOrders);
+      .updateMany(filter, updatedOrders);
+
+    await db.collection("ShopExProducts").updateOne(filter2, updatedOrders2);
 
     if (updatedResult.modifiedCount > 0) {
-      res.redirect(`http://localhost:3000/payment/success?transactionId=${id}`);
+      res.redirect(
+        `https://shop-ex-mvc-ach-server.vercel.app/payment/success?transactionId=${id}`
+      );
     }
   } catch (err) {
     next(err);
@@ -90,6 +119,55 @@ module.exports.PaymentProductsInfo = async (req, res, next) => {
       .findOne({ transactionId: id });
 
     if (result.paid === true) {
+      return res.json({ status: true, data: result });
+    }
+    res.send({ status: false });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports.CartDataGet = async (req, res, next) => {
+  try {
+    const db = getDB();
+    const { email } = req.params;
+    const result = await db
+      .collection("ShopExOrders")
+      .find({ email, paid: false })
+      .toArray();
+    if (result[0]?.email) {
+      return res.json({ status: true, data: result });
+    }
+    res.send({ status: false });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports.CartDataRemove = async (req, res, next) => {
+  try {
+    const db = getDB();
+    const { email } = req.params;
+    const id = email;
+    const result = await db
+      .collection("ShopExOrders")
+      .deleteOne({ mainId: id });
+    if (result?.acknowledged) {
+      return res.json({ status: true, data: result });
+    }
+    res.send({ status: false });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports.ProductAddToCart = async (req, res, next) => {
+  try {
+    const db = getDB();
+    const order = req.body;
+    const result = await db.collection("ShopExOrders").insertOne(order);
+
+    if (result.acknowledged) {
       return res.json({ status: true, data: result });
     }
     res.send({ status: false });

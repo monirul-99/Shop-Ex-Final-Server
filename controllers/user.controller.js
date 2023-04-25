@@ -5,7 +5,6 @@ module.exports.userAdd = async (req, res, next) => {
     const db = getDB();
     const user = req.body;
     const result = await db.collection("ShopExUser").insertOne(user);
-    console.log(result);
     if (!result.insertedId) {
       return res.status(400).send({ status: false, error: "Something Wrong" });
     }
