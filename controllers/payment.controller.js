@@ -11,16 +11,18 @@ module.exports.ordersInsert = async (req, res, next) => {
   try {
     const db = getDB();
     const order = req.body;
+    // console.log(order);
     const findProduct = await db
       .collection("ShopExProducts")
-      .findOne({ _id: ObjectId(order.id) });
+      .findOne({ _id: ObjectId(order.mainId) });
     const transactionId = new ObjectId().toString();
     const totalPrice = findProduct.price * order.quantity;
+
     const data = {
       total_amount: totalPrice,
       currency: "USD",
       tran_id: transactionId,
-      success_url: `https://shop-ex-mvc-ach-server.vercel.app/api/v1/orders/payment/success?transactionId=${transactionId}&quantity=${order.quantity}&productID=${order.id}`,
+      success_url: `https://shop-ex-mvc-ach-server.vercel.app/api/v1/orders/payment/success?transactionId=${transactionId}&quantity=${order.quantity}&productID=${order.mainId}&fullName=${order.fullName}`,
       fail_url: "http://localhost:5000/fail",
       cancel_url: "http://localhost:5000/cancel",
       ipn_url: "http://localhost:5000/ipn",
@@ -45,21 +47,16 @@ module.exports.ordersInsert = async (req, res, next) => {
     const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
     sslcz.init(data).then(async (apiResponse) => {
       let GatewayPageURL = apiResponse.GatewayPageURL;
-
       const figureOut = await db
         .collection("ShopExOrders")
         .findOne({ mainId: order?.id });
       {
-        !figureOut._id &&
+        !figureOut &&
           db.collection("ShopExOrders").insertOne({
             ...order,
-            product_name: findProduct.title,
-            price: totalPrice,
-            transactionId,
             paid: false,
           });
       }
-
       res.send({ url: GatewayPageURL });
     });
   } catch (err) {
@@ -73,14 +70,12 @@ module.exports.PaidStatusUpdate = async (req, res, next) => {
     const id = req.query.transactionId;
     const quantity = req.query.quantity;
     const productID = req.query.productID;
+    const fullName = req.query.fullName;
     const rowProduct = await db
       .collection("ShopExProducts")
       .findOne({ _id: ObjectId(productID) });
-
     const latestQuantity = rowProduct.availableQuantity - quantity;
-
     const filter = { mainId: productID };
-    // console.log({ id, quantity, productID });
     const filter2 = { _id: ObjectId(productID) };
     const updatedOrders2 = {
       $set: {
@@ -88,8 +83,13 @@ module.exports.PaidStatusUpdate = async (req, res, next) => {
       },
     };
 
+    const latestPrice = rowProduct.price * quantity;
     const updatedOrders = {
       $set: {
+        fullName,
+        totalPrice: latestPrice,
+        transactionId: id,
+        quantity,
         paid: true,
         paidAt: new Date(),
       },
@@ -102,7 +102,7 @@ module.exports.PaidStatusUpdate = async (req, res, next) => {
 
     if (updatedResult.modifiedCount > 0) {
       res.redirect(
-        `https://shop-ex-mvc-ach-server.vercel.app/payment/success?transactionId=${id}`
+        `https://shop-ex-shopping.web.app/payment/success?transactionId=${id}`
       );
     }
   } catch (err) {
@@ -131,11 +131,13 @@ module.exports.CartDataGet = async (req, res, next) => {
   try {
     const db = getDB();
     const { email } = req.params;
+
+    console.log(email);
     const result = await db
       .collection("ShopExOrders")
       .find({ email, paid: false })
       .toArray();
-    if (result[0]?.email) {
+    if (result) {
       return res.json({ status: true, data: result });
     }
     res.send({ status: false });
@@ -149,6 +151,7 @@ module.exports.CartDataRemove = async (req, res, next) => {
     const db = getDB();
     const { email } = req.params;
     const id = email;
+    console.log(id);
     const result = await db
       .collection("ShopExOrders")
       .deleteOne({ mainId: id });

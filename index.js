@@ -5,6 +5,7 @@ require("dotenv").config();
 const productsRoute = require("./routes/v1/products.route");
 const userRoute = require("./routes/v1/user.route");
 const OrdersRoute = require("./routes/v1/payment.route");
+const WishlistRoute = require("./routes/v1/wishlist.route");
 const errorHandler = require("./middleware/errorHandler");
 const { connectToServer } = require("./utils/dbConnect");
 
@@ -25,6 +26,7 @@ connectToServer((err) => {
 app.use("/api/v1/products", productsRoute);
 app.use("/api/v1/users", userRoute);
 app.use("/api/v1/orders", OrdersRoute);
+app.use("/api/v1/wishlist", WishlistRoute);
 
 app.get("/", (req, res) => {
   res.send("Congratulation,Your Shop Ex Server is Active!");
