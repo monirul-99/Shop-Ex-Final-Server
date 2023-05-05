@@ -14,4 +14,8 @@ router.route("/:id").get(ProductControllers.getProductsByProductsId);
 
 //all best products get
 router.route("/bestProducts/products").get(ProductControllers.getBestProducts);
+
+router
+  .route("/all-products/search-products/:searchText")
+  .get(ProductControllers.searchProducts);
 module.exports = router;

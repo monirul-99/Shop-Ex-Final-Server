@@ -132,7 +132,6 @@ module.exports.CartDataGet = async (req, res, next) => {
     const db = getDB();
     const { email } = req.params;
 
-    console.log(email);
     const result = await db
       .collection("ShopExOrders")
       .find({ email, paid: false })

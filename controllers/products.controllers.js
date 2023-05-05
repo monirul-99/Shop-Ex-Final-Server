@@ -27,6 +27,7 @@ module.exports.getProductById = async (req, res, next) => {
     next(err);
   }
 };
+
 module.exports.getProductsByProductsId = async (req, res, next) => {
   try {
     const db = getDB();
@@ -34,6 +35,24 @@ module.exports.getProductsByProductsId = async (req, res, next) => {
     const result = await db
       .collection("ShopExProducts")
       .find({ productsId: parseInt(id) })
+      .toArray();
+    if (result) {
+      return res.json({ status: true, data: result });
+    }
+    res.send({ status: false });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports.searchProducts = async (req, res, next) => {
+  try {
+    const db = getDB();
+    const searchText = req.params.searchText;
+    console.log(searchText);
+    const result = await db
+      .collection("ShopExProducts")
+      .find({ title: { $regex: new RegExp(searchText, "i") } })
       .toArray();
     if (result) {
       return res.json({ status: true, data: result });
@@ -59,6 +78,7 @@ module.exports.getBestProducts = async (req, res, next) => {
     next(err);
   }
 };
+
 module.exports.update = async (req, res, next) => {
   try {
     const db = getDB();
